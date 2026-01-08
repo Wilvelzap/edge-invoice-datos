@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Productividad EDGE</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="data.js"></script>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <polyline points="16 11 18 13 22 9" />
+            </svg>
+            <span>EDGE Analytics</span>
+        </div>
+
+        <div class="upload-section" style="margin-bottom: 2rem;">
+            <input type="file" id="excelUpload" accept=".xlsx, .xls" style="display: none;">
+            <button class="nav-item"
+                style="width: 100%; border: none; background: #f1f5f9; color: var(--primary); font-weight: 600; cursor: pointer;"
+                onclick="document.getElementById('excelUpload').click()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                Actualizar Datos
+            </button>
+        </div>
+
+        <nav class="nav-menu">
+            <div class="nav-item active" data-tab="productivity">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                Productividad
+            </div>
+            <div class="nav-item" data-tab="overview">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h7" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                    <path d="M16 19h6" />
+                    <path d="M19 16l3 3-3 3" />
+                </svg>
+                Vista General
+            </div>
+            <div class="nav-item" data-tab="quality">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                Calidad Regional
+            </div>
+            <div class="nav-item" data-tab="insights">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                        d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                    </path>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+                IA Insights
+            </div>
+        </nav>
+
+        <div class="filters-section">
+            <span class="filter-label">Filtros de Análisis</span>
+            <div class="filter-group">
+                <label class="filter-label" style="font-size: 0.65rem;">Región</label>
+                <select id="regionFilter" class="filter-select">
+                    <option value="all">Todas las Regiones</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" style="font-size: 0.65rem;">Ciudad</label>
+                <select id="cityFilter" class="filter-select">
+                    <option value="all">Todas las Ciudades</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" style="font-size: 0.65rem;">Estado de Personal</label>
+                <select id="statusFilter" class="filter-select">
+                    <option value="all">Todos los Estados</option>
+                    <option value="Activo">Activo</option>
+                    <option value="Abandono">Abandono</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" style="font-size: 0.65rem;">Mes</label>
+                <select id="monthFilter" class="filter-select">
+                    <option value="all">Todos los Meses</option>
+                </select>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="dashboard-header">
+            <div class="title-group">
+                <h1 id="pageTitle">Dashboard de Productividad EDGE</h1>
+                <p>Análisis de Distribución y Rendimiento de Personal</p>
+            </div>
+        </header>
+
+        <!-- Productivity Tab (Main for this request) -->
+        <section id="productivity" class="tab-content active">
+            <div class="kpi-grid">
+                <div class="card kpi-card dark">
+                    <div class="label">Total Gestores</div>
+                    <div class="value" id="kpi-total-auditors">0</div>
+                    <div class="trend info">Personal Activo</div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="label">Productividad Total</div>
+                    <div class="value" id="kpi-total-pos">0</div>
+                    <div class="trend info">POS Visitados</div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="label">Promedio General</div>
+                    <div class="value" id="kpi-avg-pos">0</div>
+                    <div class="trend info">POS por Auditor</div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="label">Tasa Aprobación</div>
+                    <div class="value" id="kpi-approval-rate">0%</div>
+                    <div class="trend up"
+                        style="height: 4px; background: #e2e8f0; border-radius: 2px; margin-top: 10px;">
+                        <div id="approval-progress"
+                            style="height: 100%; background: var(--success); border-radius: 2px; width: 0%;"></div>
+                    </div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="label">Rechazos</div>
+                    <div class="value" id="kpi-rejections" style="color: var(--danger);">0</div>
+                    <div class="trend down">Requieren Revisión</div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="card chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">Distribución de la Fuerza Laboral</span>
+                        <p class="chart-subtitle">¿Cuántos auditores logran cada rango de productividad total?</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="laborDistributionChart"></canvas>
+                    </div>
+                </div>
+                <div class="card chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">Distribución por Promedio Diario</span>
+                        <p class="chart-subtitle">Cantidad de gestores según su promedio de encuestas por día.</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="dailyAverageHistogram"></canvas>
+                    </div>
+                </div>
+                <div class="card chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">Distribución por Rangos Diarios</span>
+                        <p class="chart-subtitle">Vista agrupada de productividad promedio (rangos de 5).</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="dailyRangeHistogram"></canvas>
+                    </div>
+                </div>
+                <div class="card chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">Personas vs. Colecta (Volumen)</span>
+                        <p class="chart-subtitle">Visualización de cada auditor individual y su aporte total.</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="auditorVolumeChart"></canvas>
+                    </div>
+                </div>
+                <div class="card chart-card full-width">
+                    <div class="chart-header">
+                        <span class="chart-title">Actividad Diaria: Encuestadores y Colectas</span>
+                        <p class="chart-subtitle">Evolución temporal del personal activo y volumen de POS diario.</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="dailyActivityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-section">
+                <div class="table-header">
+                    <h3 class="table-title">Ranking Detallado de Personal (<span id="table-count">0</span>)</h3>
+                    <div class="filter-controls">
+                        <!-- Switch for Volume/Quality could go here -->
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="personnelTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>Auditor</th>
+                                <th>Ciudad</th>
+                                <th>Total POS</th>
+                                <th>Aprobados</th>
+                                <th>Calidad</th>
+                                <th>Estado</th>
+                                <th>Decisión</th>
+                            </tr>
+                        </thead>
+                        <tbody id="personnelTableBody">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Overview Tab -->
+        <section id="overview" class="tab-content">
+            <div class="charts-grid">
+                <div class="card chart-card full-width">
+                    <div class="chart-header"><span class="chart-title">Estado de POS</span></div>
+                    <div class="chart-container"><canvas id="statusChart"></canvas></div>
+                </div>
+                <div class="card chart-card">
+                    <div class="chart-header"><span class="chart-title">Métricas por Mes</span></div>
+                    <div class="chart-container"><canvas id="timelineChart"></canvas></div>
+                </div>
+                <div class="card chart-card">
+                    <div class="chart-header"><span class="chart-title">Productividad Regional</span></div>
+                    <div class="chart-container"><canvas id="regionChart"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quality Tab -->
+        <section id="quality" class="tab-content">
+            <div class="charts-grid">
+                <div class="card chart-card full-width">
+                    <div class="chart-header"><span class="chart-title">Calidad por Ciudad</span></div>
+                    <div class="chart-container"><canvas id="cityQualityChart"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Insights Tab -->
+        <section id="insights" class="tab-content">
+            <div class="dashboard-header">
+                <div class="title-group">
+                    <h2>Análisis Inteligente de Datos</h2>
+                    <p>10 hallazgos clave generados mediante análisis algorítmico</p>
+                </div>
+            </div>
+            <div class="kpi-grid" id="insightsGrid" style="grid-template-columns: repeat(2, 1fr);">
+                <!-- Injected by JS -->
+            </div>
+        </section>
+    </main>
+
+    <script src="dashboard.js"></script>
+</body>
+
+</html>
