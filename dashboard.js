@@ -54,6 +54,7 @@ function initializeProject() {
         processInitialData();
         setupFilters();
         setupTabs();
+        setupBonosListeners();
         updateDashboard();
     } else if (typeof rawDashboardData !== 'undefined') {
         // Fallback for old data format
@@ -61,6 +62,7 @@ function initializeProject() {
         processInitialData();
         setupFilters();
         setupTabs();
+        setupBonosListeners();
         updateDashboard();
     } else {
         console.error('No se encontraron datos. Asegúrate de que data.js esté cargado.');
@@ -136,7 +138,8 @@ function setupTabs() {
         'productivity': 'Dashboard de Productividad EDGE',
         'overview': 'Vista General y Colecta',
         'quality': 'Análisis de Calidad Regional',
-        'insights': 'Smart AI Insights'
+        'insights': 'Smart AI Insights',
+        'bonos': 'Comparativa de Sistemas de Pago y Bonos'
     };
 
     navItems.forEach(item => {
@@ -212,6 +215,8 @@ function updateDashboard() {
         renderQualityCharts(data);
     } else if (activeTab === 'insights') {
         renderInsights(data);
+    } else if (activeTab === 'bonos') {
+        renderBonosTab();
     }
 }
 
@@ -798,9 +803,9 @@ function generateInsights(data) {
 
     insights.push({
         title: "Estabilidad Temporal",
-        text: "La colecta se mantiene estable. Se observa un pico que exige mayor control en cierres.",
-        color: "#2DD4BF",
-        icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>'
+        text: "La productividad se mantiene constante a lo largo de las semanas, indicando un ritmo de trabajo sostenible por el equipo.",
+        color: "#10b981",
+        icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"></path><polyline points="13 13 8 18 3 13"></polyline><polyline points="21 5 11 15 6 10"></polyline></svg>'
     });
 
     insights.push({
@@ -855,4 +860,331 @@ function createChart(id, type, data, extraOptions = {}) {
         ...extraOptions
     };
     charts[id] = new Chart(ctx, { type, data, options });
+}
+
+// --- BONOS LOGIC ---
+
+const PAYMENT_RULES = {
+    edge: {
+        occidente: {
+            base: 10,
+            bonuses: [
+                { min: 21, value: 220 },
+                { min: 18, value: 150 },
+                { min: 15, value: 90 }
+            ],
+            proposed: [
+                { min: 25, value: 12 },
+                { min: 20, value: 11.5 },
+                { min: 15, value: 11 },
+                { min: 12, value: 10 }
+            ]
+        },
+        oriente: {
+            base: 15,
+            bonuses: [
+                { min: 12, value: 220 },
+                { min: 10, value: 150 },
+                { min: 8, value: 90 }
+            ],
+            proposed: [
+                { min: 14, value: 18 },
+                { min: 12, value: 17 },
+                { min: 8, value: 16 },
+                { min: 7, value: 15 }
+            ]
+        }
+    },
+    invoice: {
+        occidente: {
+            base: 20,
+            bonuses: [
+                { min: 10, value: 220 },
+                { min: 8, value: 150 },
+                { min: 6, value: 75 }
+            ],
+            proposed: [
+                { min: 10, value: 26 },
+                { min: 9, value: 25 },
+                { min: 8, value: 24 },
+                { min: 7, value: 23 },
+                { min: 6, value: 22 },
+                { min: 5, value: 21 },
+                { min: 4, value: 20 }
+            ]
+        },
+        oriente: {
+            base: 25,
+            bonuses: [
+                { min: 7, value: 220 },
+                { min: 6, value: 150 },
+                { min: 5, value: 75 }
+            ],
+            proposed: [
+                { min: 8, value: 31 }, // Extrapolated from user table ending at 7
+                { min: 7, value: 30 },
+                { min: 6, value: 28 },
+                { min: 5, value: 27 },
+                { min: 4, value: 25 }
+            ]
+        }
+    }
+};
+
+function getActiveRegion() {
+    const regionVal = document.getElementById('regionFilter').value;
+    return (regionVal && regionVal !== 'all') ? regionVal.toLowerCase() : 'occidente';
+}
+
+function setupBonosListeners() {
+    const range = document.getElementById('productivityRange');
+    if (!range) return;
+
+    // Remove existing to avoid double-processing
+    const newRange = range.cloneNode(true);
+    range.parentNode.replaceChild(newRange, range);
+
+    newRange.addEventListener('input', (e) => {
+        const val = e.target.value;
+        const rangeValue = document.getElementById('rangeValue');
+        if (rangeValue) rangeValue.textContent = val;
+        updateBonosCalculator(parseInt(val));
+    });
+}
+
+function calculatePayCurrent(dailyProd, region = null) {
+    const project = currentProject;
+    const activeRegion = region || getActiveRegion();
+    const rules = PAYMENT_RULES[project][activeRegion];
+
+    const DAYS_PER_WEEK = 6;
+    const WEEKS_PER_MONTH = 4;
+    const basePayPerSurvey = rules.base;
+
+    const weeklyProd = dailyProd * DAYS_PER_WEEK;
+    const weeklyBasePay = weeklyProd * basePayPerSurvey;
+
+    let weeklyBonus = 0;
+    for (const b of rules.bonuses) {
+        if (dailyProd >= b.min) {
+            weeklyBonus = b.value;
+            break;
+        }
+    }
+
+    const totalWeekly = weeklyBasePay + weeklyBonus;
+    const totalMonthly = totalWeekly * WEEKS_PER_MONTH;
+    const baseMonthly = (weeklyBasePay * WEEKS_PER_MONTH);
+    const bonusMonthly = (weeklyBonus * WEEKS_PER_MONTH);
+
+    return {
+        baseMonthly,
+        bonusMonthly,
+        totalMonthly
+    };
+}
+
+function calculatePayProposed(dailyProd, region = null) {
+    const project = currentProject;
+    const activeRegion = region || getActiveRegion();
+    const rules = PAYMENT_RULES[project][activeRegion];
+
+    const DAYS_PER_WEEK = 6;
+    const WEEKS_PER_MONTH = 4;
+
+    let payPerSurvey = rules.base;
+    for (const p of rules.proposed) {
+        if (dailyProd >= p.min) {
+            payPerSurvey = p.value;
+            break;
+        }
+    }
+
+    const dailyPay = dailyProd * payPerSurvey;
+    const weeklyPay = dailyPay * DAYS_PER_WEEK;
+    const totalMonthly = weeklyPay * WEEKS_PER_MONTH;
+
+    return {
+        payPerSurvey,
+        totalMonthly
+    };
+}
+
+function updateBonosCalculator(val) {
+    const unit = currentProject === 'edge' ? 'enc' : 'fac';
+    const activeRegion = getActiveRegion();
+    const current = calculatePayCurrent(val, activeRegion);
+    const proposed = calculatePayProposed(val, activeRegion);
+
+    const diffActual = proposed.totalMonthly - current.totalMonthly;
+    const diffFromBase = proposed.totalMonthly - current.baseMonthly;
+    const percentFromBase = current.baseMonthly > 0 ? (diffFromBase / current.baseMonthly * 100).toFixed(0) : 0;
+
+    const baseEl = document.getElementById('calc-base-current');
+    const bonoEl = document.getElementById('calc-bono-current');
+    const totalActualEl = document.getElementById('calc-total-current');
+    const rateLabelEl = document.getElementById('calc-label-rate');
+    const rateEl = document.getElementById('calc-rate-proposed');
+    const totalProposedEl = document.getElementById('calc-total-proposed');
+    const summaryEl = document.getElementById('calc-impact-summary');
+
+    if (baseEl) baseEl.textContent = `${current.baseMonthly.toLocaleString()} Bs.`;
+    if (bonoEl) bonoEl.textContent = `${current.bonusMonthly.toLocaleString()} Bs.`;
+    if (totalActualEl) totalActualEl.textContent = `${current.totalMonthly.toLocaleString()} Bs.`;
+
+    if (rateLabelEl) rateLabelEl.textContent = `Pago por ${currentProject === 'edge' ? 'Encuesta' : 'Factura'}:`;
+    if (rateEl) rateEl.textContent = `${proposed.payPerSurvey} Bs.`;
+    if (totalProposedEl) totalProposedEl.textContent = `${proposed.totalMonthly.toLocaleString()} Bs.`;
+
+    if (summaryEl) {
+        if (diffActual >= 0) {
+            summaryEl.style.backgroundColor = '#dcfce7';
+            summaryEl.style.color = '#166534';
+            summaryEl.innerHTML = `
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>
+                <span>Impacto Real: +${diffActual.toLocaleString()} Bs. mensuales (${percentFromBase}% sobre base)</span>
+            `;
+        } else {
+            summaryEl.style.backgroundColor = '#fee2e2';
+            summaryEl.style.color = '#991b1b';
+            summaryEl.innerHTML = `
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                <span>Impacto Real: ${diffActual.toLocaleString()} Bs. mensuales</span>
+            `;
+        }
+    }
+}
+
+function renderBonosTab() {
+    const tableBody = document.getElementById('bonosComparisonBody');
+    if (!tableBody) return;
+
+    const unit = currentProject === 'edge' ? 'enc' : 'fac';
+    const labelProd = document.getElementById('label-prod-diaria');
+    const simProjName = document.getElementById('sim-project-name');
+    const subtitle = document.querySelector('#bonos .title-group p');
+    const activeRegion = getActiveRegion();
+    const rules = PAYMENT_RULES[currentProject][activeRegion];
+
+    // Dynamic Slider adjustments
+    const rangeInput = document.getElementById('productivityRange');
+    const sliderMinLabel = document.getElementById('slider-min');
+    const sliderMaxLabel = document.getElementById('slider-max');
+
+    const minVal = currentProject === 'edge' ? 5 : 1;
+    const maxVal = currentProject === 'edge' ? 35 : 15;
+    const defaultVal = currentProject === 'edge' ? 15 : 5;
+
+    if (rangeInput) {
+        rangeInput.min = minVal;
+        rangeInput.max = maxVal;
+        rangeInput.value = defaultVal;
+        if (sliderMinLabel) sliderMinLabel.textContent = minVal;
+        if (sliderMaxLabel) sliderMaxLabel.textContent = maxVal;
+        const rangeValueText = document.getElementById('rangeValue');
+        if (rangeValueText) rangeValueText.textContent = defaultVal;
+    }
+
+    if (labelProd) labelProd.textContent = currentProject === 'edge' ? 'Encuestas/Día' : 'Facturas/Día';
+    if (simProjName) simProjName.textContent = `SIMULACIÓN: ${currentProject.toUpperCase()} - ${activeRegion.toUpperCase()}`;
+    if (subtitle) {
+        subtitle.textContent = `Región Detectada: ${activeRegion.toUpperCase()} | Análisis: Sistema Actual vs. Propuesta de Pago Variable`;
+    }
+
+    tableBody.innerHTML = '';
+
+    const minRange = Math.min(...rules.proposed.map(p => p.min)) - 1;
+    const maxRange = Math.max(...rules.proposed.map(p => p.min)) + 4;
+
+    for (let i = Math.max(0, Math.floor(minRange)); i <= Math.ceil(maxRange); i++) {
+        if (i < 1) continue;
+        const current = calculatePayCurrent(i, activeRegion);
+        const proposed = calculatePayProposed(i, activeRegion);
+
+        const diffActual = proposed.totalMonthly - current.totalMonthly;
+        const diffFromBase = proposed.totalMonthly - current.baseMonthly;
+        const percentFromBase = current.baseMonthly > 0 ? (diffFromBase / current.baseMonthly * 100).toFixed(1) : 0;
+
+        const isHighlighted = rules.proposed.some(p => p.min === i);
+        const rowStyle = isHighlighted ? 'background-color: #f0fdf4; font-weight: 600;' : '';
+
+        const row = `
+            <tr style="${rowStyle}">
+                <td>${i}</td>
+                <td>${i * 6}</td>
+                <td>${current.totalMonthly.toLocaleString()} Bs. <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">(Base: ${current.baseMonthly} + Bono: ${current.bonusMonthly})</span></td>
+                <td style="color: var(--primary-light);">${proposed.totalMonthly.toLocaleString()} Bs. <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">(@ ${proposed.payPerSurvey}/${unit})</span></td>
+                <td style="color: ${diffActual >= 0 ? 'var(--success)' : 'var(--danger)'}; font-weight: 700;">${diffActual >= 0 ? '+' : ''}${diffActual.toLocaleString()} Bs.</td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span class="badge ${diffActual >= 0 ? 'badge-keep' : 'badge-replace'}" style="width: 60px; justify-content: center;">${(diffActual / current.totalMonthly * 100).toFixed(1)}%</span>
+                        <div style="flex: 1; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; min-width: 100px;">
+                            <div style="width: ${Math.min(Math.abs(diffActual / current.totalMonthly * 100) * 3, 100)}%; height: 100%; background: ${diffActual >= 0 ? 'var(--success)' : 'var(--danger)'};"></div>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+        tableBody.innerHTML += row;
+    }
+
+    updateBonosCalculator(defaultVal);
+    renderBonosTeamSimulation();
+}
+
+function renderBonosTeamSimulation() {
+    const simBody = document.getElementById('bonosTeamSimulationBody');
+    if (!simBody) return;
+
+    simBody.innerHTML = '';
+    const filteredData = getFilteredData();
+    const auditorField = currentProject === 'edge' ? 'Name Auditor' : 'Auditor Name';
+
+    const auditorStats = {};
+    filteredData.forEach(d => {
+        const name = d[auditorField];
+        if (!auditorStats[name]) {
+            auditorStats[name] = { total: 0, days: new Set(), city: d['Ciudad simp'], region: d.Region };
+        }
+        if (currentProject === 'edge') {
+            auditorStats[name].total += d['Total POS'];
+        } else {
+            auditorStats[name].total += d['Visits with Invoice Collection'];
+        }
+        if (d.dateString) auditorStats[name].days.add(d.dateString);
+    });
+
+    const simulation = Object.values(auditorStats).map(a => {
+        const dayCount = a.days.size || 1;
+        const avgDaily = a.total / dayCount;
+        const auditorRegion = (a.region || '').toLowerCase() === 'oriente' ? 'oriente' : 'occidente';
+
+        const currentPay = calculatePayCurrent(avgDaily, auditorRegion);
+        const proposedPay = calculatePayProposed(avgDaily, auditorRegion);
+
+        return {
+            name: a.name,
+            city: a.city,
+            region: auditorRegion,
+            avgDaily: avgDaily.toFixed(1),
+            current: currentPay.totalMonthly,
+            proposed: proposedPay.totalMonthly,
+            diff: proposedPay.totalMonthly - currentPay.totalMonthly
+        };
+    }).sort((a, b) => b.diff - a.diff);
+
+    simulation.forEach(s => {
+        const diffColor = s.diff >= 0 ? 'var(--success)' : 'var(--danger)';
+        const row = `
+            <tr>
+                <td style="font-weight: 700;">${s.name} <span style="font-size: 0.6rem; color: var(--text-muted); font-weight: 400; display: block;">${s.region.toUpperCase()}</span></td>
+                <td><span class="city-badge">${s.city}</span></td>
+                <td style="text-align: center; font-weight: 600;">${s.avgDaily}</td>
+                <td>${s.current.toLocaleString()} Bs.</td>
+                <td style="color: var(--primary-light); font-weight: 600;">${s.proposed.toLocaleString()} Bs.</td>
+                <td style="color: ${diffColor}; font-weight: 700;">${s.diff >= 0 ? '+' : ''}${s.diff.toLocaleString()} Bs.</td>
+            </tr>
+        `;
+        simBody.innerHTML += row;
+    });
 }

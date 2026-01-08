@@ -15,8 +15,8 @@ def process_excel(file_path):
     return df.to_dict(orient='records')
 
 try:
-    edge_path = r'c:\Users\wilve\OneDrive\Escritorio\datos Edge dasboards\4 meses - eDGE.xlsx'
-    invoice_path = r'c:\Users\wilve\OneDrive\Escritorio\datos Edge dasboards\Copia de 4 meses -inv.xlsx'
+    edge_path = r'c:\Users\wilve\OneDrive\Escritorio\datos Edge dasboards\Copia de 4 meses - eDGE v2.xlsx'
+    invoice_path = r'c:\Users\wilve\OneDrive\Escritorio\datos Edge dasboards\Copia de 4 meses -inv v2.xlsx'
     
     print("Processing EDGE data...")
     edge_data = process_excel(edge_path)

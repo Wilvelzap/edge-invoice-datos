@@ -92,6 +92,14 @@
                 </svg>
                 IA Insights
             </div>
+            <div class="nav-item" data-tab="bonos">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+                Comparativa Bonos
+            </div>
         </nav>
 
         <div class="filters-section">
@@ -291,6 +299,130 @@
             </div>
             <div class="kpi-grid" id="insightsGrid" style="grid-template-columns: repeat(2, 1fr);">
                 <!-- Injected by JS -->
+            </div>
+        </section>
+
+        <!-- Bonos Tab -->
+        <section id="bonos" class="tab-content">
+            <div class="dashboard-header">
+                <div class="title-group">
+                    <h2>Comparativa de Sistemas de Bonos</h2>
+                    <p>Análisis de impacto: Sistema Actual vs. Propuesta de Pago por Escuesta</p>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom: 2rem;">
+                <div class="chart-header">
+                    <span class="chart-title">Calculadora de Impacto</span>
+                    <p class="chart-subtitle">Compara cuánto ganaría un gestor bajo ambos sistemas según su
+                        productividad diaria.</p>
+                </div>
+                <div
+                    style="display: flex; gap: 2rem; align-items: center; margin-bottom: 2rem; background: #f8fafc; padding: 1.5rem; border-radius: 0.75rem;">
+                    <div style="flex: 1;">
+                        <label class="filter-label">Productividad Diaria Promedio</label>
+                        <input type="range" id="productivityRange"
+                            style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; cursor: pointer;">
+                        <div
+                            style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-weight: 600; color: var(--primary);">
+                            <span id="slider-min">1</span>
+                            <span id="rangeValue"
+                                style="background: var(--primary); color: white; padding: 0.1rem 0.6rem; border-radius: 1rem; font-size: 0.9rem;">15</span>
+                            <span id="slider-max">35</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="kpi-grid" style="grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                    <div class="card" style="border: 1px solid #e2e8f0; padding: 1rem;">
+                        <div
+                            style="font-size: 0.7rem; color: var(--secondary); font-weight: 700; text-transform: uppercase;">
+                            SISTEMA ACTUAL</div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 0.5rem;">
+                            <span>Base Mensual:</span>
+                            <span id="calc-base-current">0 Bs.</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 0.25rem;">
+                            <span>Bonos Estimados:</span>
+                            <span id="calc-bono-current">0 Bs.</span>
+                        </div>
+                        <div
+                            style="display: flex; justify-content: space-between; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed #e2e8f0; font-weight: 800; font-size: 1.1rem; color: var(--primary);">
+                            <span>TOTAL ACTUAL:</span>
+                            <span id="calc-total-current">0 Bs.</span>
+                        </div>
+                    </div>
+
+                    <div class="card"
+                        style="border: 1px solid var(--primary-light); padding: 1rem; background: #f0f9ff;">
+                        <div
+                            style="font-size: 0.7rem; color: var(--primary-light); font-weight: 700; text-transform: uppercase;">
+                            NUEVA PROPUESTA</div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 0.5rem;">
+                            <span id="calc-label-rate">Pago por Encuesta:</span>
+                            <span id="calc-rate-proposed">0 Bs.</span>
+                        </div>
+                        <div
+                            style="display: flex; justify-content: space-between; margin-top: 0.75rem; padding-top: 0.5rem; border-top: 1px dashed var(--primary-light); font-weight: 800; font-size: 1.1rem; color: var(--primary-light);">
+                            <span>PAGO VARIABLE:</span>
+                            <span id="calc-total-proposed">0 Bs.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="calc-impact-summary"
+                    style="margin-top: 1.5rem; padding: 1rem; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; gap: 1rem; font-weight: 700; font-size: 1.1rem;">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+
+            <div class="table-section">
+                <div class="table-header">
+                    <h3 class="table-title">Tabla Comparativa Detallada (Mes: 24 días)</h3>
+                </div>
+                <div class="table-container">
+                    <table id="bonosComparisonTable">
+                        <thead>
+                            <tr>
+                                <th id="label-prod-diaria">Prod. Diaria</th>
+                                <th>Prod. Semanal</th>
+                                <th>Pago Actual (Base + Bono)</th>
+                                <th>Propuesta (Pago Variable)</th>
+                                <th>Incremento Bs.</th>
+                                <th>Incremento %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bonosComparisonBody">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="table-section" style="margin-top: 3rem;">
+                <div class="table-header">
+                    <h3 class="table-title">Simulación de Impacto en Equipo (<span id="sim-project-name">EDGE</span>)
+                    </h3>
+                    <p class="chart-subtitle">Comparativa basada en el desempeño real de los gestores activos según
+                        filtros.</p>
+                </div>
+                <div class="table-container">
+                    <table id="bonosTeamSimulationTable">
+                        <thead>
+                            <tr>
+                                <th>Gestor</th>
+                                <th>Sede</th>
+                                <th>Promedio Diario</th>
+                                <th>Pago Actual Estimado</th>
+                                <th>Propuesta Estimada</th>
+                                <th>Diferencia</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bonosTeamSimulationBody">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
     </main>
