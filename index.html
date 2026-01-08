@@ -106,15 +106,17 @@
             <span class="filter-label">Filtros de Análisis</span>
             <div class="filter-group">
                 <label class="filter-label" style="font-size: 0.65rem;">Región</label>
-                <select id="regionFilter" class="filter-select">
-                    <option value="all">Todas las Regiones</option>
-                </select>
+                <div id="regionFilterContainer" class="multiselect-container">
+                    <div class="multiselect-header" id="regionFilterHeader">Todas las regiones</div>
+                    <div class="multiselect-options" id="regionFilterOptions"></div>
+                </div>
             </div>
             <div class="filter-group">
                 <label class="filter-label" style="font-size: 0.65rem;">Ciudad</label>
-                <select id="cityFilter" class="filter-select">
-                    <option value="all">Todas las Ciudades</option>
-                </select>
+                <div id="cityFilterContainer" class="multiselect-container">
+                    <div class="multiselect-header" id="cityFilterHeader">Todas las ciudades</div>
+                    <div class="multiselect-options" id="cityFilterOptions"></div>
+                </div>
             </div>
             <div class="filter-group">
                 <label class="filter-label" style="font-size: 0.65rem;">Estado de Personal</label>
@@ -306,8 +308,48 @@
         <section id="bonos" class="tab-content">
             <div class="dashboard-header">
                 <div class="title-group">
-                    <h2>Comparativa de Sistemas de Bonos</h2>
-                    <p>Análisis de impacto: Sistema Actual vs. Propuesta de Pago por Escuesta</p>
+                    <h2>Simulador Pro: Control de Bonos y Comisiones</h2>
+                    <p>Configura tus propias reglas de pago y encuentra el equilibrio perfecto.</p>
+                </div>
+                <div style="background: var(--primary); color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer;"
+                    id="recommendRatesBtn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m21 16-4 4-4-4" />
+                        <path d="M17 20V4" />
+                        <path d="m3 8 4-4 4 4" />
+                        <path d="M7 4v16" />
+                    </svg>
+                    <span>Recomendar Tarifas Óptimas</span>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom: 2rem; border-top: 4px solid var(--primary);">
+                <div class="chart-header">
+                    <span class="chart-title">Panel de Configuración (Sandbox)</span>
+                    <p class="chart-subtitle">Modifica los valores abajo para ver el impacto inmediato en las tablas y
+                        calculadora.</p>
+                </div>
+
+                <div
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; padding: 1rem;">
+                    <div class="card" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                        <label class="filter-label" style="font-weight: 700;">Base Mensual (Cualquier Sistema)</label>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+                            <input type="number" id="sandbox-base" value="2100"
+                                style="flex: 1; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
+                            <span style="font-weight: 600;">Bs.</span>
+                        </div>
+                    </div>
+
+                    <div class="card" style="background: #f0fdf4; border: 1px solid #bbf7d0; grid-column: span 2;">
+                        <label class="filter-label" style="font-weight: 700;">Escala de Pago Propuesta
+                            (Variable)</label>
+                        <div id="sandbox-rates-container"
+                            style="margin-top: 0.5rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem;">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
                 </div>
             </div>
 

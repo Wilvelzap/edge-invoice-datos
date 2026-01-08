@@ -1,6 +1,12 @@
 let currentProject = 'edge';
 let dashboardData = [];
 let charts = {};
+let activeFilters = {
+    regions: [],
+    cities: [],
+    months: [],
+    status: 'all'
+};
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', () => {
@@ -16,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initializeProject();
         setupUploadListener();
         setupMobileMenu();
+        setupSandboxListeners();
     } catch (error) {
         console.error('Error loading application:', error);
     }
@@ -105,28 +112,119 @@ function processInitialData() {
 }
 
 function setupFilters() {
-    const regionFilter = document.getElementById('regionFilter');
-    const cityFilter = document.getElementById('cityFilter');
-    const statusFilter = document.getElementById('statusFilter');
-    const monthFilter = document.getElementById('monthFilter');
+    activeFilters = {
+        regions: [],
+        cities: [],
+        months: [],
+        status: 'all'
+    };
 
-    // Reset options
-    regionFilter.innerHTML = '<option value="all">Todas las Regiones</option>';
-    cityFilter.innerHTML = '<option value="all">Todas las Ciudades</option>';
-    monthFilter.innerHTML = '<option value="all">Todos los Meses</option>';
+    const statusFilter = document.getElementById('statusFilter');
+    if (statusFilter) {
+        statusFilter.value = 'all';
+        statusFilter.addEventListener('change', (e) => {
+            activeFilters.status = e.target.value;
+            updateDashboard();
+        });
+    }
 
     const regions = [...new Set(dashboardData.map(d => d.Region))].filter(Boolean).sort();
     const cities = [...new Set(dashboardData.map(d => d['Ciudad simp']))].filter(Boolean).sort();
     const months = [...new Set(dashboardData.map(d => d.Mes))].filter(Boolean).sort();
 
-    regions.forEach(r => regionFilter.add(new Option(r, r)));
-    cities.forEach(c => cityFilter.add(new Option(c, c)));
-    months.forEach(m => monthFilter.add(new Option(m, m)));
+    createMultiSelect('regionFilter', regions, 'Todas las regiones', (selected) => {
+        activeFilters.regions = selected;
+        updateDashboard();
+    });
 
-    regionFilter.addEventListener('change', updateDashboard);
-    cityFilter.addEventListener('change', updateDashboard);
-    statusFilter.addEventListener('change', updateDashboard);
-    monthFilter.addEventListener('change', updateDashboard);
+    createMultiSelect('cityFilter', cities, 'Todas las ciudades', (selected) => {
+        activeFilters.cities = selected;
+        updateDashboard();
+    });
+
+    createMultiSelect('monthFilter', months, 'Todos los meses', (selected) => {
+        activeFilters.months = selected;
+        updateDashboard();
+    });
+
+    // Close all dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.multiselect-container')) {
+            document.querySelectorAll('.multiselect-container').forEach(c => c.classList.remove('open'));
+        }
+    });
+}
+
+function createMultiSelect(idPrefix, options, defaultText, callback) {
+    const header = document.getElementById(`${idPrefix}Header`);
+    const optionsContainer = document.getElementById(`${idPrefix}Options`);
+    const container = document.getElementById(`${idPrefix}Container`);
+
+    if (!header || !optionsContainer || !container) return;
+
+    optionsContainer.innerHTML = '';
+    let selected = [];
+
+    const updateHeader = () => {
+        if (selected.length === 0) {
+            header.innerHTML = defaultText;
+        } else {
+            header.innerHTML = `${selected.length} seleccionado(s) <span class="selected-count">${selected.length}</span>`;
+        }
+    };
+
+    // Add "Select All" option
+    const allOption = document.createElement('div');
+    allOption.className = 'multiselect-option';
+    allOption.innerHTML = `
+        <input type="checkbox" id="${idPrefix}_all">
+        <label for="${idPrefix}_all">Seleccionar Todos</label>
+    `;
+    optionsContainer.appendChild(allOption);
+
+    const allCheckbox = allOption.querySelector('input');
+
+    const checkboxes = [];
+
+    options.forEach(opt => {
+        const optionDiv = document.createElement('div');
+        optionDiv.className = 'multiselect-option';
+        optionDiv.innerHTML = `
+            <input type="checkbox" value="${opt}" id="${idPrefix}_${opt}">
+            <label for="${idPrefix}_${opt}">${opt}</label>
+        `;
+        optionsContainer.appendChild(optionDiv);
+
+        const cb = optionDiv.querySelector('input');
+        checkboxes.push(cb);
+
+        cb.addEventListener('change', () => {
+            selected = checkboxes.filter(c => c.checked).map(c => c.value);
+            allCheckbox.checked = selected.length === options.length;
+            updateHeader();
+            callback(selected);
+        });
+
+        optionDiv.addEventListener('click', (e) => {
+            if (e.target !== cb && e.target !== optionDiv.querySelector('label')) {
+                cb.checked = !cb.checked;
+                cb.dispatchEvent(new Event('change'));
+            }
+        });
+    });
+
+    allCheckbox.addEventListener('change', () => {
+        checkboxes.forEach(cb => cb.checked = allCheckbox.checked);
+        selected = allCheckbox.checked ? options : [];
+        updateHeader();
+        callback(selected);
+    });
+
+    header.addEventListener('click', () => {
+        const isOpen = container.classList.contains('open');
+        document.querySelectorAll('.multiselect-container').forEach(c => c.classList.remove('open'));
+        if (!isOpen) container.classList.add('open');
+    });
 }
 
 function setupTabs() {
@@ -188,17 +286,13 @@ async function handleFileUpload(event) {
 }
 
 function getFilteredData() {
-    const region = document.getElementById('regionFilter').value;
-    const city = document.getElementById('cityFilter').value;
-    const status = document.getElementById('statusFilter').value;
-    const month = document.getElementById('monthFilter').value;
-
     return dashboardData.filter(d => {
-        const matchRegion = region === 'all' || d.Region === region;
-        const matchCity = city === 'all' || d['Ciudad simp'] === city;
-        const matchStatus = status === 'all' || d['Estado actual'] === status;
-        const matchMonth = month === 'all' || d.Mes === month;
-        return matchRegion && matchCity && matchStatus && matchMonth;
+        const matchRegion = activeFilters.regions.length === 0 || activeFilters.regions.includes(d.Region);
+        const matchCity = activeFilters.cities.length === 0 || activeFilters.cities.includes(d['Ciudad simp']);
+        const matchMonth = activeFilters.months.length === 0 || activeFilters.months.includes(d.Mes);
+        const matchStatus = activeFilters.status === 'all' || d['Estado actual'] === activeFilters.status;
+
+        return matchRegion && matchCity && matchMonth && matchStatus;
     });
 }
 
@@ -269,10 +363,14 @@ function updateProductivityKPIs(data) {
 
 function getAuditorStats(data) {
     const stats = {};
+    const cityStats = {};
     const auditorField = currentProject === 'edge' ? 'Name Auditor' : 'Auditor Name';
 
     data.forEach(d => {
         const name = d[auditorField];
+        const city = d['Ciudad simp'];
+        const date = d.dateString || 'Unknown';
+
         if (!stats[name]) {
             stats[name] = {
                 name,
@@ -281,10 +379,14 @@ function getAuditorStats(data) {
                 rejected: 0,
                 recruited: 0,
                 collections: 0,
-                city: d['Ciudad simp'],
-                status: d['Estado actual'] || 'Activo'
+                city: city,
+                status: d['Estado actual'] || 'Activo',
+                daysActive: new Set()
             };
         }
+
+        stats[name].daysActive.add(date);
+
         if (currentProject === 'edge') {
             stats[name].total += d['Total POS'];
             stats[name].approved += d['Approved POS'];
@@ -292,10 +394,44 @@ function getAuditorStats(data) {
         } else {
             stats[name].recruited += d['PoS Recruited'];
             stats[name].collections += d['Visits with Invoice Collection'];
-            stats[name].total += d['Visits with Invoice Collection']; // For distribution
+            stats[name].total += d['Visits with Invoice Collection'];
+        }
+
+        // Aggregate for city statistics
+        if (!cityStats[city]) {
+            cityStats[city] = { totalVolume: 0, totalDaysAcrossAuditors: 0 };
         }
     });
-    return Object.values(stats);
+
+    // Post-process auditor metrics
+    const auditors = Object.values(stats).map(a => {
+        const days = a.daysActive.size || 1;
+        const avgDaily = a.total / days;
+        return {
+            ...a,
+            daysCount: days,
+            avgDaily: avgDaily
+        };
+    });
+
+    // Calculate city averages for daily productivity
+    const citiesList = {};
+    auditors.forEach(a => {
+        if (!citiesList[a.city]) citiesList[a.city] = { sumAvgs: 0, count: 0 };
+        citiesList[a.city].sumAvgs += a.avgDaily;
+        citiesList[a.city].count += 1;
+    });
+
+    const cityAverages = {};
+    for (const city in citiesList) {
+        cityAverages[city] = citiesList[city].sumAvgs / citiesList[city].count;
+    }
+
+    // Attach city average to each auditor
+    return auditors.map(a => ({
+        ...a,
+        cityAvg: cityAverages[a.city] || 0
+    }));
 }
 
 function renderProductivityCharts(data) {
@@ -556,9 +692,9 @@ function updatePersonnelTable(auditors) {
             <th>Auditor</th>
             <th>Ciudad</th>
             <th>Total POS</th>
-            <th>Aprobados</th>
+            <th>Prom. Día</th>
             <th>Calidad</th>
-            <th>Estado</th>
+            <th>Vs. Ciudad</th>
             <th>Decisión</th>
         `;
     } else {
@@ -567,9 +703,9 @@ function updatePersonnelTable(auditors) {
             <th>Colaborador</th>
             <th>Ciudad</th>
             <th>Facturas</th>
-            <th>Puntos Reclutados</th>
+            <th>Prom. Día</th>
             <th>Eficiencia</th>
-            <th>Estado</th>
+            <th>Vs. Ciudad</th>
             <th>Sugerencia</th>
         `;
     }
@@ -577,42 +713,43 @@ function updatePersonnelTable(auditors) {
     auditors.forEach((a, index) => {
         let quality = 0;
         let decision = '';
+        const dailyAvg = a.avgDaily;
+        const cityAvg = a.cityAvg;
+        const ratioToCity = cityAvg > 0 ? (dailyAvg / cityAvg) : 1;
 
         if (currentProject === 'edge') {
             quality = a.total > 0 ? (a.approved / a.total * 100).toFixed(1) : 0;
-            if (quality >= 90 && a.total >= 300) {
+
+            if (quality >= 90 && ratioToCity >= 0.9) {
                 decision = '<span class="badge badge-keep">MANTENER</span>';
-            } else if (quality < 75) {
+            } else if (quality < 70 || ratioToCity < 0.5) {
                 decision = '<span class="badge badge-replace">DESPEDIR</span>';
             } else {
                 decision = '<span class="badge badge-train">REFORZAR</span>';
             }
         } else {
-            // INVOICE Logic: Efficiency based on recruitment vs collection?
-            // Let's use collection success as "quality" for now
             quality = a.total > 0 ? (a.collections / a.total * 100).toFixed(1) : 0;
-            if (quality >= 95 && a.recruited >= 5) {
+
+            if (quality >= 95 && ratioToCity >= 0.9) {
                 decision = '<span class="badge badge-keep">EXCELENTE</span>';
-            } else if (quality < 80) {
+            } else if (quality < 80 || ratioToCity < 0.5) {
                 decision = '<span class="badge badge-replace">REVISAR</span>';
             } else {
                 decision = '<span class="badge badge-train">MEJORAR</span>';
             }
         }
 
-        const statusIcon = a.status === 'Activo'
-            ? '<span class="status-indicator status-active">●</span>'
-            : '<span class="status-indicator status-abandoned">●</span>';
+        const vsCityText = `<span style="color: ${ratioToCity >= 1 ? 'var(--success)' : (ratioToCity < 0.7 ? 'var(--danger)' : 'var(--warning)')}">${(ratioToCity * 100).toFixed(0)}%</span>`;
 
         const row = `
             <tr>
                 <td>${index + 1}</td>
-                <td><span class="auditor-name">${a.name}</span></td>
+                <td><span class="auditor-name">${a.name || '---'}</span></td>
                 <td><span class="city-badge">${a.city}</span></td>
                 <td style="font-weight: 600;">${(currentProject === 'edge' ? a.total : a.collections).toLocaleString()}</td>
-                <td style="color: var(--success); font-weight: 500;">${(currentProject === 'edge' ? a.approved : a.recruited).toLocaleString()}</td>
+                <td style="text-align: center; font-weight: 600;">${dailyAvg.toFixed(1)}</td>
                 <td><span style="font-weight: 700; color: ${quality >= 90 ? 'var(--success)' : (quality < 75 ? 'var(--danger)' : 'var(--warning)')}">${quality}%</span></td>
-                <td style="text-align: center;">${statusIcon}</td>
+                <td style="text-align: center;">${vsCityText}</td>
                 <td>${decision}</td>
             </tr>
         `;
@@ -932,8 +1069,10 @@ const PAYMENT_RULES = {
 };
 
 function getActiveRegion() {
-    const regionVal = document.getElementById('regionFilter').value;
-    return (regionVal && regionVal !== 'all') ? regionVal.toLowerCase() : 'occidente';
+    if (activeFilters.regions && activeFilters.regions.length > 0) {
+        return activeFilters.regions[0].toLowerCase();
+    }
+    return 'occidente';
 }
 
 function setupBonosListeners() {
@@ -946,8 +1085,8 @@ function setupBonosListeners() {
 
     newRange.addEventListener('input', (e) => {
         const val = e.target.value;
-        const rangeValue = document.getElementById('rangeValue');
-        if (rangeValue) rangeValue.textContent = val;
+        const rangeValueText = document.getElementById('rangeValue');
+        if (rangeValueText) rangeValueText.textContent = val;
         updateBonosCalculator(parseInt(val));
     });
 }
@@ -1059,12 +1198,16 @@ function renderBonosTab() {
     const tableBody = document.getElementById('bonosComparisonBody');
     if (!tableBody) return;
 
+    const activeRegion = getActiveRegion();
+    const rules = PAYMENT_RULES[currentProject][activeRegion];
+
+    // Render Sandbox first to ensure inputs match current rules
+    renderSandbox();
+
     const unit = currentProject === 'edge' ? 'enc' : 'fac';
     const labelProd = document.getElementById('label-prod-diaria');
     const simProjName = document.getElementById('sim-project-name');
     const subtitle = document.querySelector('#bonos .title-group p');
-    const activeRegion = getActiveRegion();
-    const rules = PAYMENT_RULES[currentProject][activeRegion];
 
     // Dynamic Slider adjustments
     const rangeInput = document.getElementById('productivityRange');
@@ -1078,11 +1221,11 @@ function renderBonosTab() {
     if (rangeInput) {
         rangeInput.min = minVal;
         rangeInput.max = maxVal;
-        rangeInput.value = defaultVal;
+        if (!rangeInput.value || rangeInput.value == 0) rangeInput.value = defaultVal;
         if (sliderMinLabel) sliderMinLabel.textContent = minVal;
         if (sliderMaxLabel) sliderMaxLabel.textContent = maxVal;
         const rangeValueText = document.getElementById('rangeValue');
-        if (rangeValueText) rangeValueText.textContent = defaultVal;
+        if (rangeValueText) rangeValueText.textContent = rangeInput.value;
     }
 
     if (labelProd) labelProd.textContent = currentProject === 'edge' ? 'Encuestas/Día' : 'Facturas/Día';
@@ -1102,9 +1245,6 @@ function renderBonosTab() {
         const proposed = calculatePayProposed(i, activeRegion);
 
         const diffActual = proposed.totalMonthly - current.totalMonthly;
-        const diffFromBase = proposed.totalMonthly - current.baseMonthly;
-        const percentFromBase = current.baseMonthly > 0 ? (diffFromBase / current.baseMonthly * 100).toFixed(1) : 0;
-
         const isHighlighted = rules.proposed.some(p => p.min === i);
         const rowStyle = isHighlighted ? 'background-color: #f0fdf4; font-weight: 600;' : '';
 
@@ -1128,8 +1268,88 @@ function renderBonosTab() {
         tableBody.innerHTML += row;
     }
 
-    updateBonosCalculator(defaultVal);
+    updateBonosCalculator(rangeInput ? parseInt(rangeInput.value) : defaultVal);
     renderBonosTeamSimulation();
+}
+
+function renderSandbox() {
+    const container = document.getElementById('sandbox-rates-container');
+    const baseInput = document.getElementById('sandbox-base');
+    if (!container || !baseInput) return;
+
+    const activeRegion = getActiveRegion();
+    const rules = PAYMENT_RULES[currentProject][activeRegion];
+
+    // Avoid infinite loops with listeners
+    const currentBase = rules.baseOverride || rules.basePay || 2100;
+    if (document.activeElement !== baseInput) {
+        baseInput.value = currentBase;
+    }
+
+    container.innerHTML = '';
+    rules.proposed.forEach((p, idx) => {
+        const item = document.createElement('div');
+        item.style.cssText = "background: white; padding: 0.75rem; border-radius: 0.4rem; border: 1px solid #e2e8f0; display: flex; flex-direction: column; justify-content: space-between;";
+        item.innerHTML = `
+            <label style="font-size: 0.7rem; color: var(--secondary); display: block; margin-bottom: 0.3rem; font-weight: 600;">Min. ${currentProject === 'edge' ? 'Enc' : 'Fac'}: ${p.min}</label>
+            <div style="display: flex; align-items: center; gap: 0.3rem;">
+                <input type="number" step="0.5" value="${p.value}" data-idx="${idx}" class="sandbox-rate-input" style="width: 100%; padding: 0.4rem; border: 1px solid #cbd5e1; border-radius: 0.3rem; font-weight: 700; color: var(--primary);">
+                <span style="font-size: 0.8rem; font-weight: 600;">Bs.</span>
+            </div>
+        `;
+        container.appendChild(item);
+    });
+
+    // Add listeners to new inputs
+    container.querySelectorAll('.sandbox-rate-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const idx = parseInt(e.target.dataset.idx);
+            rules.proposed[idx].value = parseFloat(e.target.value);
+            renderBonosTab();
+        });
+    });
+}
+
+function setupSandboxListeners() {
+    const baseInput = document.getElementById('sandbox-base');
+    const recommendBtn = document.getElementById('recommendRatesBtn');
+
+    if (baseInput) {
+        baseInput.addEventListener('change', (e) => {
+            const activeRegion = getActiveRegion();
+            const rules = PAYMENT_RULES[currentProject][activeRegion];
+            const newVal = parseInt(e.target.value);
+            rules.basePay = newVal; // We'll store it in a generic basePay prop
+            rules.proposed.forEach(p => p.baseOverride = newVal);
+            renderBonosTab();
+        });
+    }
+
+    if (recommendBtn) {
+        recommendBtn.addEventListener('click', recommendOptimalRates);
+    }
+}
+
+function recommendOptimalRates() {
+    const activeRegion = getActiveRegion();
+    const rules = PAYMENT_RULES[currentProject][activeRegion];
+    const unit = currentProject === 'edge' ? 'encs' : 'facs';
+
+    // Simple logic: Recommendation aims for a 10% gain over Current System (Base + Bonus)
+    // for auditors who reach the 2nd tier of productivity.
+
+    rules.proposed.forEach((tier, idx) => {
+        // Calculate what they currently earn at this benchmark
+        const currentAtTier = calculatePayCurrent(tier.min, activeRegion);
+        const targetMonthly = currentAtTier.totalMonthly * 1.05; // 5% bonus above current total
+
+        // TargetRate = TargetMonthly / (Min * Days * Weeks)
+        const suggestedRate = Math.ceil(targetMonthly / (tier.min * 6 * 4));
+        tier.value = suggestedRate;
+    });
+
+    alert(`Recomendación aplicada: Ajustamos las tarifas para asegurar un beneficio del ~5% sobre el sistema actual en cada nivel de productividad.`);
+    renderBonosTab();
 }
 
 function renderBonosTeamSimulation() {
