@@ -15,10 +15,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
         initializeProject();
         setupUploadListener();
+        setupMobileMenu();
     } catch (error) {
         console.error('Error loading application:', error);
     }
 });
+
+function setupMobileMenu() {
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+
+    if (menuToggle && sidebar && overlay) {
+        const toggle = () => {
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        };
+
+        menuToggle.addEventListener('click', toggle);
+        overlay.addEventListener('click', toggle);
+
+        // Close sidebar when clicking a nav item on mobile
+        const navItems = document.querySelectorAll('.nav-menu .nav-item');
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('active');
+                    overlay.classList.remove('active');
+                }
+            });
+        });
+    }
+}
 
 function initializeProject() {
     if (typeof allProjectsData !== 'undefined') {
