@@ -1,37 +1,75 @@
+let currentProject = 'edge';
 let dashboardData = [];
 let charts = {};
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', () => {
     try {
-        if (typeof rawDashboardData !== 'undefined') {
-            dashboardData = rawDashboardData;
-            processInitialData();
-            setupFilters();
-            setupTabs();
-            updateDashboard();
-            setupUploadListener();
-        } else {
-            console.error('No se encontró rawDashboardData. Asegúrate de que data.js esté cargado.');
+        const projectSelector = document.getElementById('projectSelector');
+        if (projectSelector) {
+            projectSelector.addEventListener('change', (e) => {
+                currentProject = e.target.value;
+                initializeProject();
+            });
         }
+
+        initializeProject();
+        setupUploadListener();
     } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('Error loading application:', error);
     }
 });
 
+function initializeProject() {
+    if (typeof allProjectsData !== 'undefined') {
+        dashboardData = allProjectsData[currentProject] || [];
+        processInitialData();
+        setupFilters();
+        setupTabs();
+        updateDashboard();
+    } else if (typeof rawDashboardData !== 'undefined') {
+        // Fallback for old data format
+        dashboardData = rawDashboardData;
+        processInitialData();
+        setupFilters();
+        setupTabs();
+        updateDashboard();
+    } else {
+        console.error('No se encontraron datos. Asegúrate de que data.js esté cargado.');
+    }
+}
+
 function processInitialData() {
     dashboardData.forEach(row => {
-        row['Total POS'] = parseFloat(row['Total POS']) || 0;
-        row['Approved POS'] = parseFloat(row['Approved POS']) || 0;
-        row['Rechazados Totales'] = parseFloat(row['Rechazados Totales']) || 0;
-        row['Tiempo en Formularios (Hrs)'] = parseFloat(row['Tiempo en Formularios (Hrs)']) || 0;
-        row['Refusal POS'] = parseFloat(row['Refusal POS']) || 0;
+        // EDGE specific fields
+        if (currentProject === 'edge') {
+            row['Total POS'] = parseFloat(row['Total POS']) || 0;
+            row['Approved POS'] = parseFloat(row['Approved POS']) || 0;
+            row['Rechazados Totales'] = parseFloat(row['Rechazados Totales']) || 0;
+            row['Refusal POS'] = parseFloat(row['Refusal POS']) || 0;
+        }
+        // INVOICE specific fields
+        else {
+            row['PoS Recruited'] = parseFloat(row['PoS Recruited']) || 0;
+            row['Visits for Recruitment'] = parseFloat(row['Visits for Recruitment']) || 0;
+            row['Visits for Invoice Collection'] = parseFloat(row['Visits for Invoice Collection']) || 0;
+            row['Visits with Invoice Collection'] = parseFloat(row['Visits with Invoice Collection']) || 0;
+        }
+
+        row['Tiempo en Formularios (Hrs)'] = parseFloat(row['Time in forms (Hrs)'] || row['Tiempo en Formularios (Hrs)']) || 0;
 
         // Convert Excel serial date to JS Date object
         if (row.Fecha) {
-            const serial = parseFloat(row.Fecha);
-            row.jsDate = new Date((serial - 25569) * 86400 * 1000);
-            row.dateString = row.jsDate.toLocaleDateString();
+            // If it's already a string from defaulted process (like defaulting default_str in Python), parse it
+            if (typeof row.Fecha === 'string' && row.Fecha.includes('-')) {
+                row.jsDate = new Date(row.Fecha);
+            } else {
+                const serial = parseFloat(row.Fecha);
+                if (!isNaN(serial)) {
+                    row.jsDate = new Date((serial - 25569) * 86400 * 1000);
+                }
+            }
+            if (row.jsDate) row.dateString = row.jsDate.toLocaleDateString();
         }
     });
 }
@@ -150,41 +188,79 @@ function updateDashboard() {
 }
 
 function updateProductivityKPIs(data) {
-    const auditorNames = [...new Set(data.map(d => d['Name Auditor']))];
-    const totalPos = data.reduce((sum, d) => sum + d['Total POS'], 0);
-    const approved = data.reduce((sum, d) => sum + d['Approved POS'], 0);
-    const rejections = data.reduce((sum, d) => sum + d['Rechazados Totales'], 0);
+    const auditorField = currentProject === 'edge' ? 'Name Auditor' : 'Auditor Name';
+    const auditorNames = [...new Set(data.map(d => d[auditorField]))];
 
-    const avgPos = auditorNames.length > 0 ? (totalPos / auditorNames.length).toFixed(0) : 0;
-    const approvalRate = totalPos > 0 ? (approved / totalPos * 100).toFixed(1) : 0;
+    if (currentProject === 'edge') {
+        const totalPos = data.reduce((sum, d) => sum + d['Total POS'], 0);
+        const approved = data.reduce((sum, d) => sum + d['Approved POS'], 0);
+        const rejections = data.reduce((sum, d) => sum + d['Rechazados Totales'], 0);
+        const avgPos = auditorNames.length > 0 ? (totalPos / auditorNames.length).toFixed(0) : 0;
+        const approvalRate = totalPos > 0 ? (approved / totalPos * 100).toFixed(1) : 0;
+
+        document.getElementById('kpi-total-pos').previousElementSibling.textContent = 'Productividad Total';
+        document.getElementById('kpi-total-pos').textContent = totalPos.toLocaleString();
+        document.getElementById('kpi-avg-pos').textContent = avgPos;
+        document.getElementById('kpi-approval-rate').textContent = `${approvalRate}%`;
+        document.getElementById('kpi-rejections').textContent = rejections.toLocaleString();
+        document.getElementById('approval-progress').style.width = `${approvalRate}%`;
+
+        document.getElementById('kpi-avg-pos').previousElementSibling.textContent = 'Promedio General';
+        document.getElementById('kpi-approval-rate').previousElementSibling.textContent = 'Tasa Aprobación';
+        document.getElementById('kpi-rejections').previousElementSibling.textContent = 'Rechazos';
+    } else {
+        const recruited = data.reduce((sum, d) => sum + d['PoS Recruited'], 0);
+        const collections = data.reduce((sum, d) => sum + d['Visits with Invoice Collection'], 0);
+        const visits = data.reduce((sum, d) => sum + d['Visits for Invoice Collection'], 0);
+
+        const recruitmentRate = auditorNames.length > 0 ? (recruited / auditorNames.length).toFixed(1) : 0;
+        const collectionRate = visits > 0 ? (collections / visits * 100).toFixed(1) : 0;
+
+        document.getElementById('kpi-total-pos').previousElementSibling.textContent = 'Facturas Recolectadas';
+        document.getElementById('kpi-total-pos').textContent = collections.toLocaleString();
+
+        document.getElementById('kpi-avg-pos').previousElementSibling.textContent = 'Recrutas/Auditor';
+        document.getElementById('kpi-avg-pos').textContent = recruitmentRate;
+
+        document.getElementById('kpi-approval-rate').previousElementSibling.textContent = 'Tasa Recolección';
+        document.getElementById('kpi-approval-rate').textContent = `${collectionRate}%`;
+
+        document.getElementById('kpi-rejections').previousElementSibling.textContent = 'Total Reclutados';
+        document.getElementById('kpi-rejections').textContent = recruited.toLocaleString();
+
+        document.getElementById('approval-progress').style.width = `${collectionRate}%`;
+    }
 
     document.getElementById('kpi-total-auditors').textContent = auditorNames.length;
-    document.getElementById('kpi-total-pos').textContent = totalPos.toLocaleString();
-    document.getElementById('kpi-avg-pos').textContent = avgPos;
-    document.getElementById('kpi-approval-rate').textContent = `${approvalRate}%`;
-    document.getElementById('kpi-rejections').textContent = rejections.toLocaleString();
-
-    // Smooth progress bar update
-    document.getElementById('approval-progress').style.width = `${approvalRate}%`;
 }
 
 function getAuditorStats(data) {
     const stats = {};
+    const auditorField = currentProject === 'edge' ? 'Name Auditor' : 'Auditor Name';
+
     data.forEach(d => {
-        const name = d['Name Auditor'];
+        const name = d[auditorField];
         if (!stats[name]) {
             stats[name] = {
                 name,
                 total: 0,
                 approved: 0,
                 rejected: 0,
+                recruited: 0,
+                collections: 0,
                 city: d['Ciudad simp'],
                 status: d['Estado actual'] || 'Activo'
             };
         }
-        stats[name].total += d['Total POS'];
-        stats[name].approved += d['Approved POS'];
-        stats[name].rejected += d['Rechazados Totales'];
+        if (currentProject === 'edge') {
+            stats[name].total += d['Total POS'];
+            stats[name].approved += d['Approved POS'];
+            stats[name].rejected += d['Rechazados Totales'];
+        } else {
+            stats[name].recruited += d['PoS Recruited'];
+            stats[name].collections += d['Visits with Invoice Collection'];
+            stats[name].total += d['Visits with Invoice Collection']; // For distribution
+        }
     });
     return Object.values(stats);
 }
@@ -226,18 +302,18 @@ function renderProductivityCharts(data) {
     createChart('auditorVolumeChart', 'line', {
         labels: sortedAuditors.map(a => ''), // Hide names to keep it clean like the image
         datasets: [{
-            label: 'Volumen por Auditor',
+            label: currentProject === 'edge' ? 'Volumen POS' : 'Volumen Facturas',
             data: sortedAuditors.map(a => a.total),
             borderColor: '#3b82f6',
             backgroundColor: 'rgba(59, 130, 246, 0.1)',
             fill: true,
-            pointBackgroundColor: sortedAuditors.map(a => a.total > 1200 ? '#10b981' : '#3b82f6'),
-            pointRadius: (ctx) => sortedAuditors[ctx.dataIndex]?.total > 1200 ? 5 : 3,
+            pointBackgroundColor: sortedAuditors.map(a => a.total > (currentProject === 'edge' ? 1200 : 100) ? '#10b981' : '#3b82f6'),
+            pointRadius: (ctx) => sortedAuditors[ctx.dataIndex]?.total > (currentProject === 'edge' ? 1200 : 100) ? 5 : 3,
             tension: 0.4
         }]
     }, {
-        plugins: { tooltip: { callbacks: { label: (ctx) => `${sortedAuditors[ctx.dataIndex].name}: ${ctx.raw} POS` } } },
-        scales: { x: { display: false }, y: { title: { display: true, text: 'POS' } } }
+        plugins: { tooltip: { callbacks: { label: (ctx) => `${sortedAuditors[ctx.dataIndex].name}: ${ctx.raw} ${currentProject === 'edge' ? 'POS' : 'Facturas'}` } } },
+        scales: { x: { display: false }, y: { title: { display: true, text: currentProject === 'edge' ? 'POS' : 'Facturas' } } }
     });
 
     // 3. Update Table
@@ -254,13 +330,18 @@ function renderProductivityCharts(data) {
 }
 
 function renderDailyRangeHistogram(data) {
+    const auditorField = currentProject === 'edge' ? 'Name Auditor' : 'Auditor Name';
     const auditorStats = {};
     data.forEach(d => {
-        const name = d['Name Auditor'];
+        const name = d[auditorField];
         if (!auditorStats[name]) {
             auditorStats[name] = { total: 0, days: new Set() };
         }
-        auditorStats[name].total += d['Total POS'];
+        if (currentProject === 'edge') {
+            auditorStats[name].total += d['Total POS'];
+        } else {
+            auditorStats[name].total += d['Visits with Invoice Collection'];
+        }
         if (d.dateString) auditorStats[name].days.add(d.dateString);
     });
 
@@ -293,7 +374,7 @@ function renderDailyRangeHistogram(data) {
     }, {
         plugins: {
             legend: { display: false },
-            tooltip: { callbacks: { label: (ctx) => `${ctx.raw} gestores en rango ${ctx.label} POS/día` } }
+            tooltip: { callbacks: { label: (ctx) => `${ctx.raw} gestores en rango ${ctx.label} ${currentProject === 'edge' ? 'POS' : 'Facturas'}/día` } }
         },
         scales: {
             y: { beginAtZero: true, title: { display: true, text: 'N° Gestores' } },
@@ -303,13 +384,18 @@ function renderDailyRangeHistogram(data) {
 }
 
 function renderDailyAverageHistogram(data) {
+    const auditorField = currentProject === 'edge' ? 'Name Auditor' : 'Auditor Name';
     const auditorStats = {};
     data.forEach(d => {
-        const name = d['Name Auditor'];
+        const name = d[auditorField];
         if (!auditorStats[name]) {
             auditorStats[name] = { total: 0, days: new Set() };
         }
-        auditorStats[name].total += d['Total POS'];
+        if (currentProject === 'edge') {
+            auditorStats[name].total += d['Total POS'];
+        } else {
+            auditorStats[name].total += d['Visits with Invoice Collection'];
+        }
         if (d.dateString) auditorStats[name].days.add(d.dateString);
     });
 
@@ -348,14 +434,14 @@ function renderDailyAverageHistogram(data) {
             legend: { display: false },
             tooltip: {
                 callbacks: {
-                    label: (ctx) => `${ctx.raw} gestores con promedio de ${ctx.label} encuestas/día`
+                    label: (ctx) => `${ctx.raw} gestores con promedio de ${ctx.label} ${currentProject === 'edge' ? 'encuestas' : 'facturas'}/día`
                 }
             }
         },
         scales: {
             y: { beginAtZero: true, title: { display: true, text: 'N° Gestores' } },
             x: {
-                title: { display: true, text: 'Promedio de Encuestas Diarias' },
+                title: { display: true, text: 'Promedio de Producción Diaria' },
                 ticks: {
                     autoSkip: true,
                     maxRotation: 0,
@@ -426,20 +512,59 @@ function renderDailyActivityChart(data) {
 function updatePersonnelTable(auditors) {
     const tableBody = document.getElementById('personnelTableBody');
     const tableCount = document.getElementById('table-count');
+    const tableHeaders = document.querySelector('#personnelTable thead tr');
     tableBody.innerHTML = '';
     tableCount.textContent = auditors.length;
 
-    auditors.forEach((a, index) => {
-        const quality = a.total > 0 ? (a.approved / a.total * 100).toFixed(1) : 0;
+    // Update headers based on project
+    if (currentProject === 'edge') {
+        tableHeaders.innerHTML = `
+            <th>#</th>
+            <th>Auditor</th>
+            <th>Ciudad</th>
+            <th>Total POS</th>
+            <th>Aprobados</th>
+            <th>Calidad</th>
+            <th>Estado</th>
+            <th>Decisión</th>
+        `;
+    } else {
+        tableHeaders.innerHTML = `
+            <th>#</th>
+            <th>Colaborador</th>
+            <th>Ciudad</th>
+            <th>Facturas</th>
+            <th>Puntos Reclutados</th>
+            <th>Eficiencia</th>
+            <th>Estado</th>
+            <th>Sugerencia</th>
+        `;
+    }
 
-        // Decision Logic
+    auditors.forEach((a, index) => {
+        let quality = 0;
         let decision = '';
-        if (quality >= 90 && a.total >= 300) {
-            decision = '<span class="badge badge-keep">MANTENER</span>';
-        } else if (quality < 75) {
-            decision = '<span class="badge badge-replace">DESPEDIR</span>';
+
+        if (currentProject === 'edge') {
+            quality = a.total > 0 ? (a.approved / a.total * 100).toFixed(1) : 0;
+            if (quality >= 90 && a.total >= 300) {
+                decision = '<span class="badge badge-keep">MANTENER</span>';
+            } else if (quality < 75) {
+                decision = '<span class="badge badge-replace">DESPEDIR</span>';
+            } else {
+                decision = '<span class="badge badge-train">REFORZAR</span>';
+            }
         } else {
-            decision = '<span class="badge badge-train">REFORZAR</span>';
+            // INVOICE Logic: Efficiency based on recruitment vs collection?
+            // Let's use collection success as "quality" for now
+            quality = a.total > 0 ? (a.collections / a.total * 100).toFixed(1) : 0;
+            if (quality >= 95 && a.recruited >= 5) {
+                decision = '<span class="badge badge-keep">EXCELENTE</span>';
+            } else if (quality < 80) {
+                decision = '<span class="badge badge-replace">REVISAR</span>';
+            } else {
+                decision = '<span class="badge badge-train">MEJORAR</span>';
+            }
         }
 
         const statusIcon = a.status === 'Activo'
@@ -451,8 +576,8 @@ function updatePersonnelTable(auditors) {
                 <td>${index + 1}</td>
                 <td><span class="auditor-name">${a.name}</span></td>
                 <td><span class="city-badge">${a.city}</span></td>
-                <td style="font-weight: 600;">${a.total.toLocaleString()}</td>
-                <td style="color: var(--success); font-weight: 500;">${a.approved.toLocaleString()}</td>
+                <td style="font-weight: 600;">${(currentProject === 'edge' ? a.total : a.collections).toLocaleString()}</td>
+                <td style="color: var(--success); font-weight: 500;">${(currentProject === 'edge' ? a.approved : a.recruited).toLocaleString()}</td>
                 <td><span style="font-weight: 700; color: ${quality >= 90 ? 'var(--success)' : (quality < 75 ? 'var(--danger)' : 'var(--warning)')}">${quality}%</span></td>
                 <td style="text-align: center;">${statusIcon}</td>
                 <td>${decision}</td>
@@ -465,45 +590,67 @@ function updatePersonnelTable(auditors) {
 // Chart Renderers for other tabs (Simplified for brevity)
 function renderOverviewCharts(data) {
     // 1. Status Doughnut Chart
-    const statusData = {
-        'Aprobados': data.reduce((sum, d) => sum + d['Approved POS'], 0),
-        'Rechazados': data.reduce((sum, d) => sum + d['Rechazados Totales'], 0),
-        'Refusal': data.reduce((sum, d) => sum + d['Refusal POS'], 0)
-    };
-    createChart('statusChart', 'doughnut', {
-        labels: Object.keys(statusData),
-        datasets: [{ data: Object.values(statusData), backgroundColor: ['#10b981', '#ef4444', '#f59e0b'] }]
-    });
+    if (currentProject === 'edge') {
+        const statusData = {
+            'Aprobados': data.reduce((sum, d) => sum + d['Approved POS'], 0),
+            'Rechazados': data.reduce((sum, d) => sum + d['Rechazados Totales'], 0),
+            'Refusal': data.reduce((sum, d) => sum + d['Refusal POS'], 0)
+        };
+        createChart('statusChart', 'doughnut', {
+            labels: Object.keys(statusData),
+            datasets: [{ data: Object.values(statusData), backgroundColor: ['#10b981', '#ef4444', '#f59e0b'] }]
+        });
+    } else {
+        const statusData = {
+            'Recrutados': data.reduce((sum, d) => sum + d['PoS Recruited'], 0),
+            'Recolectados': data.reduce((sum, d) => sum + d['Visits with Invoice Collection'], 0),
+            'Pendientes': data.reduce((sum, d) => sum + (d['Visits for Invoice Collection'] - d['Visits with Invoice Collection']), 0)
+        };
+        createChart('statusChart', 'doughnut', {
+            labels: Object.keys(statusData),
+            datasets: [{ data: Object.values(statusData), backgroundColor: ['#6366f1', '#10b981', '#f59e0b'] }]
+        });
+    }
 
     // 2. Timeline chart (Metrics by month)
     const months = [...new Set(data.map(d => d.Mes))].filter(Boolean);
     const monthStats = months.map(m => {
         const filtered = data.filter(d => d.Mes === m);
-        return {
-            name: m,
-            total: filtered.reduce((sum, d) => sum + d['Total POS'], 0),
-            approved: filtered.reduce((sum, d) => sum + d['Approved POS'], 0)
-        };
+        if (currentProject === 'edge') {
+            return {
+                name: m,
+                val1: filtered.reduce((sum, d) => sum + d['Total POS'], 0),
+                val2: filtered.reduce((sum, d) => sum + d['Approved POS'], 0)
+            };
+        } else {
+            return {
+                name: m,
+                val1: filtered.reduce((sum, d) => sum + d['Visits with Invoice Collection'], 0),
+                val2: filtered.reduce((sum, d) => sum + d['PoS Recruited'], 0)
+            };
+        }
     });
 
     createChart('timelineChart', 'bar', {
         labels: monthStats.map(s => s.name),
         datasets: [
-            { label: 'Total POS', data: monthStats.map(s => s.total), backgroundColor: '#3b82f6' },
-            { label: 'Aprobados', data: monthStats.map(s => s.approved), backgroundColor: '#10b981' }
+            { label: currentProject === 'edge' ? 'Total POS' : 'Facturas', data: monthStats.map(s => s.val1), backgroundColor: '#3b82f6' },
+            { label: currentProject === 'edge' ? 'Aprobados' : 'Reclutas', data: monthStats.map(s => s.val2), backgroundColor: '#10b981' }
         ]
     });
 
     // 3. Regional Productivity
     const regions = [...new Set(data.map(d => d.Region))].filter(Boolean);
+    const volumeField = currentProject === 'edge' ? 'Total POS' : 'Visits with Invoice Collection';
+
     const regionStats = regions.map(r => ({
         name: r,
-        total: data.filter(d => d.Region === r).reduce((sum, d) => sum + d['Total POS'], 0)
+        total: data.filter(d => d.Region === r).reduce((sum, d) => sum + (d[volumeField] || 0), 0)
     })).sort((a, b) => b.total - a.total);
 
     createChart('regionChart', 'bar', {
         labels: regionStats.map(s => s.name),
-        datasets: [{ label: 'Total POS', data: regionStats.map(s => s.total), backgroundColor: '#6366f1' }]
+        datasets: [{ label: currentProject === 'edge' ? 'Total POS' : 'Facturas', data: regionStats.map(s => s.total), backgroundColor: '#6366f1' }]
     }, { indexAxis: 'y' });
 }
 

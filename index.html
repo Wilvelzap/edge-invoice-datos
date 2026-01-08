@@ -25,6 +25,16 @@
             <span>EDGE Analytics</span>
         </div>
 
+        <div class="project-selector-container" style="padding: 0 20px 20px;">
+            <label class="filter-label"
+                style="font-size: 0.7rem; color: #64748b; margin-bottom: 8px; display: block;">PROYECTO ACTIVO</label>
+            <select id="projectSelector" class="filter-select"
+                style="background: white; border: 1px solid #e2e8f0; font-weight: 600; color: var(--primary);">
+                <option value="edge">PROYECTO EDGE (CENSOS)</option>
+                <option value="invoice">PROYECTO INVOICE (FACTURAS)</option>
+            </select>
+        </div>
+
         <div class="upload-section" style="margin-bottom: 2rem;">
             <input type="file" id="excelUpload" accept=".xlsx, .xls" style="display: none;">
             <button class="nav-item"
