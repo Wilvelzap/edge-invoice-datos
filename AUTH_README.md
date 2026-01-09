@@ -53,7 +53,7 @@ const AUTH_CONFIG = {
 
 En `config.js`, modifica:
 ```javascript
-sessionDuration: 24  // Número de horas
+sessionDuration: 1  // Número de horas
 ```
 
 ---
