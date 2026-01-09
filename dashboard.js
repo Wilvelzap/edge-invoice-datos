@@ -343,7 +343,7 @@ function updateProductivityKPIs(data) {
         const recruitmentRate = auditorNames.length > 0 ? (recruited / auditorNames.length).toFixed(1) : 0;
         const collectionRate = visits > 0 ? (collections / visits * 100).toFixed(1) : 0;
 
-        document.getElementById('kpi-total-pos').previousElementSibling.textContent = 'Facturas Recolectadas';
+        document.getElementById('kpi-total-pos').previousElementSibling.textContent = 'Visitas con Factura';
         document.getElementById('kpi-total-pos').textContent = collections.toLocaleString();
 
         document.getElementById('kpi-avg-pos').previousElementSibling.textContent = 'Recrutas/Auditor';
@@ -471,7 +471,7 @@ function renderProductivityCharts(data) {
     createChart('auditorVolumeChart', 'line', {
         labels: sortedAuditors.map(a => ''), // Hide names to keep it clean like the image
         datasets: [{
-            label: currentProject === 'edge' ? 'Volumen POS' : 'Volumen Facturas',
+            label: currentProject === 'edge' ? 'Volumen POS' : 'Volumen Visitas',
             data: sortedAuditors.map(a => a.total),
             borderColor: '#3b82f6',
             backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -481,8 +481,8 @@ function renderProductivityCharts(data) {
             tension: 0.4
         }]
     }, {
-        plugins: { tooltip: { callbacks: { label: (ctx) => `${sortedAuditors[ctx.dataIndex].name}: ${ctx.raw} ${currentProject === 'edge' ? 'POS' : 'Facturas'}` } } },
-        scales: { x: { display: false }, y: { title: { display: true, text: currentProject === 'edge' ? 'POS' : 'Facturas' } } }
+        plugins: { tooltip: { callbacks: { label: (ctx) => `${sortedAuditors[ctx.dataIndex].name}: ${ctx.raw} ${currentProject === 'edge' ? 'POS' : 'Visitas'}` } } },
+        scales: { x: { display: false }, y: { title: { display: true, text: currentProject === 'edge' ? 'POS' : 'Visitas' } } }
     });
 
     // 3. Update Table
@@ -543,7 +543,7 @@ function renderDailyRangeHistogram(data) {
     }, {
         plugins: {
             legend: { display: false },
-            tooltip: { callbacks: { label: (ctx) => `${ctx.raw} gestores en rango ${ctx.label} ${currentProject === 'edge' ? 'POS' : 'Facturas'}/día` } }
+            tooltip: { callbacks: { label: (ctx) => `${ctx.raw} gestores en rango ${ctx.label} ${currentProject === 'edge' ? 'POS' : 'Visitas'}/día` } }
         },
         scales: {
             y: { beginAtZero: true, title: { display: true, text: 'N° Gestores' } },
@@ -603,7 +603,7 @@ function renderDailyAverageHistogram(data) {
             legend: { display: false },
             tooltip: {
                 callbacks: {
-                    label: (ctx) => `${ctx.raw} gestores con promedio de ${ctx.label} ${currentProject === 'edge' ? 'encuestas' : 'facturas'}/día`
+                    label: (ctx) => `${ctx.raw} gestores con promedio de ${ctx.label} ${currentProject === 'edge' ? 'encuestas' : 'visitas'}/día`
                 }
             }
         },
@@ -702,7 +702,7 @@ function updatePersonnelTable(auditors) {
             <th>#</th>
             <th>Colaborador</th>
             <th>Ciudad</th>
-            <th>Facturas</th>
+            <th>Visitas</th>
             <th>Prom. Día</th>
             <th>Eficiencia</th>
             <th>Vs. Ciudad</th>
@@ -804,7 +804,7 @@ function renderOverviewCharts(data) {
     createChart('timelineChart', 'bar', {
         labels: monthStats.map(s => s.name),
         datasets: [
-            { label: currentProject === 'edge' ? 'Total POS' : 'Facturas', data: monthStats.map(s => s.val1), backgroundColor: '#3b82f6' },
+            { label: currentProject === 'edge' ? 'Total POS' : 'Visitas con Factura', data: monthStats.map(s => s.val1), backgroundColor: '#3b82f6' },
             { label: currentProject === 'edge' ? 'Aprobados' : 'Reclutas', data: monthStats.map(s => s.val2), backgroundColor: '#10b981' }
         ]
     });
@@ -820,7 +820,7 @@ function renderOverviewCharts(data) {
 
     createChart('regionChart', 'bar', {
         labels: regionStats.map(s => s.name),
-        datasets: [{ label: currentProject === 'edge' ? 'Total POS' : 'Facturas', data: regionStats.map(s => s.total), backgroundColor: '#6366f1' }]
+        datasets: [{ label: currentProject === 'edge' ? 'Total POS' : 'Visitas con Factura', data: regionStats.map(s => s.total), backgroundColor: '#6366f1' }]
     }, { indexAxis: 'y' });
 }
 
@@ -1025,13 +1025,15 @@ const PAYMENT_RULES = {
                 { min: 8, value: 90 }
             ],
             proposed: [
-                { min: 14, value: 18 },
-                { min: 12, value: 17 },
+                { min: 12, value: 18 },
+                { min: 10, value: 17 },
                 { min: 8, value: 16 },
                 { min: 7, value: 15 }
             ]
         }
     },
+    // IMPORTANT: For Invoice project, payment is based on "Visits with Invoice Collection", 
+    // NOT on the number of invoices collected. Invoice counts are a productivity metric only.
     invoice: {
         occidente: {
             base: 20,
@@ -1150,7 +1152,7 @@ function calculatePayProposed(dailyProd, region = null) {
 }
 
 function updateBonosCalculator(val) {
-    const unit = currentProject === 'edge' ? 'enc' : 'fac';
+    const unit = currentProject === 'edge' ? 'enc' : 'vis';
     const activeRegion = getActiveRegion();
     const current = calculatePayCurrent(val, activeRegion);
     const proposed = calculatePayProposed(val, activeRegion);
@@ -1171,7 +1173,7 @@ function updateBonosCalculator(val) {
     if (bonoEl) bonoEl.textContent = `${current.bonusMonthly.toLocaleString()} Bs.`;
     if (totalActualEl) totalActualEl.textContent = `${current.totalMonthly.toLocaleString()} Bs.`;
 
-    if (rateLabelEl) rateLabelEl.textContent = `Pago por ${currentProject === 'edge' ? 'Encuesta' : 'Factura'}:`;
+    if (rateLabelEl) rateLabelEl.textContent = `Pago por ${currentProject === 'edge' ? 'Encuesta' : 'Visita'}:`;
     if (rateEl) rateEl.textContent = `${proposed.payPerSurvey} Bs.`;
     if (totalProposedEl) totalProposedEl.textContent = `${proposed.totalMonthly.toLocaleString()} Bs.`;
 
@@ -1204,7 +1206,7 @@ function renderBonosTab() {
     // Render Sandbox first to ensure inputs match current rules
     renderSandbox();
 
-    const unit = currentProject === 'edge' ? 'enc' : 'fac';
+    const unit = currentProject === 'edge' ? 'enc' : 'vis';
     const labelProd = document.getElementById('label-prod-diaria');
     const simProjName = document.getElementById('sim-project-name');
     const subtitle = document.querySelector('#bonos .title-group p');
@@ -1228,7 +1230,7 @@ function renderBonosTab() {
         if (rangeValueText) rangeValueText.textContent = rangeInput.value;
     }
 
-    if (labelProd) labelProd.textContent = currentProject === 'edge' ? 'Encuestas/Día' : 'Facturas/Día';
+    if (labelProd) labelProd.textContent = currentProject === 'edge' ? 'Encuestas/Día' : 'Visitas/Día';
     if (simProjName) simProjName.textContent = `SIMULACIÓN: ${currentProject.toUpperCase()} - ${activeRegion.toUpperCase()}`;
     if (subtitle) {
         subtitle.textContent = `Región Detectada: ${activeRegion.toUpperCase()} | Análisis: Sistema Actual vs. Propuesta de Pago Variable`;
@@ -1291,7 +1293,7 @@ function renderSandbox() {
         const item = document.createElement('div');
         item.style.cssText = "background: white; padding: 0.75rem; border-radius: 0.4rem; border: 1px solid #e2e8f0; display: flex; flex-direction: column; justify-content: space-between;";
         item.innerHTML = `
-            <label style="font-size: 0.7rem; color: var(--secondary); display: block; margin-bottom: 0.3rem; font-weight: 600;">Min. ${currentProject === 'edge' ? 'Enc' : 'Fac'}: ${p.min}</label>
+            <label style="font-size: 0.7rem; color: var(--secondary); display: block; margin-bottom: 0.3rem; font-weight: 600;">Min. ${currentProject === 'edge' ? 'Enc' : 'Vis'}: ${p.min}</label>
             <div style="display: flex; align-items: center; gap: 0.3rem;">
                 <input type="number" step="0.5" value="${p.value}" data-idx="${idx}" class="sandbox-rate-input" style="width: 100%; padding: 0.4rem; border: 1px solid #cbd5e1; border-radius: 0.3rem; font-weight: 700; color: var(--primary);">
                 <span style="font-size: 0.8rem; font-weight: 600;">Bs.</span>
@@ -1333,7 +1335,7 @@ function setupSandboxListeners() {
 function recommendOptimalRates() {
     const activeRegion = getActiveRegion();
     const rules = PAYMENT_RULES[currentProject][activeRegion];
-    const unit = currentProject === 'edge' ? 'encs' : 'facs';
+    const unit = currentProject === 'edge' ? 'encs' : 'vis';
 
     // Simple logic: Recommendation aims for a 10% gain over Current System (Base + Bonus)
     // for auditors who reach the 2nd tier of productivity.
