@@ -1001,6 +1001,18 @@ function createChart(id, type, data, extraOptions = {}) {
 
 // --- BONOS LOGIC ---
 
+// Helper function to format numbers with max 1 decimal
+function formatNumber(num, maxDecimals = 1) {
+    // Round to specified decimals
+    const rounded = Math.round(num * Math.pow(10, maxDecimals)) / Math.pow(10, maxDecimals);
+    // If it's a whole number, return without decimals
+    if (rounded % 1 === 0) {
+        return rounded.toLocaleString('es-BO', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+    // Otherwise return with the decimal
+    return rounded.toLocaleString('es-BO', { minimumFractionDigits: 1, maximumFractionDigits: maxDecimals });
+}
+
 const PAYMENT_RULES = {
     edge: {
         occidente: {
@@ -1169,13 +1181,13 @@ function updateBonosCalculator(val) {
     const totalProposedEl = document.getElementById('calc-total-proposed');
     const summaryEl = document.getElementById('calc-impact-summary');
 
-    if (baseEl) baseEl.textContent = `${current.baseMonthly.toLocaleString()} Bs.`;
-    if (bonoEl) bonoEl.textContent = `${current.bonusMonthly.toLocaleString()} Bs.`;
-    if (totalActualEl) totalActualEl.textContent = `${current.totalMonthly.toLocaleString()} Bs.`;
+    if (baseEl) baseEl.textContent = `${formatNumber(current.baseMonthly)} Bs.`;
+    if (bonoEl) bonoEl.textContent = `${formatNumber(current.bonusMonthly)} Bs.`;
+    if (totalActualEl) totalActualEl.textContent = `${formatNumber(current.totalMonthly)} Bs.`;
 
     if (rateLabelEl) rateLabelEl.textContent = `Pago por ${currentProject === 'edge' ? 'Encuesta' : 'Visita'}:`;
-    if (rateEl) rateEl.textContent = `${proposed.payPerSurvey} Bs.`;
-    if (totalProposedEl) totalProposedEl.textContent = `${proposed.totalMonthly.toLocaleString()} Bs.`;
+    if (rateEl) rateEl.textContent = `${formatNumber(proposed.payPerSurvey)} Bs.`;
+    if (totalProposedEl) totalProposedEl.textContent = `${formatNumber(proposed.totalMonthly)} Bs.`;
 
     if (summaryEl) {
         if (diffActual >= 0) {
@@ -1183,14 +1195,14 @@ function updateBonosCalculator(val) {
             summaryEl.style.color = '#166534';
             summaryEl.innerHTML = `
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>
-                <span>Impacto Real: +${diffActual.toLocaleString()} Bs. mensuales (${percentFromBase}% sobre base)</span>
+                <span>Impacto Real: +${formatNumber(diffActual)} Bs. mensuales (${percentFromBase}% sobre base)</span>
             `;
         } else {
             summaryEl.style.backgroundColor = '#fee2e2';
             summaryEl.style.color = '#991b1b';
             summaryEl.innerHTML = `
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
-                <span>Impacto Real: ${diffActual.toLocaleString()} Bs. mensuales</span>
+                <span>Impacto Real: ${formatNumber(diffActual)} Bs. mensuales</span>
             `;
         }
     }
@@ -1254,9 +1266,9 @@ function renderBonosTab() {
             <tr style="${rowStyle}">
                 <td>${i}</td>
                 <td>${i * 6}</td>
-                <td>${current.totalMonthly.toLocaleString()} Bs. <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">(Base: ${current.baseMonthly} + Bono: ${current.bonusMonthly})</span></td>
-                <td style="color: var(--primary-light);">${proposed.totalMonthly.toLocaleString()} Bs. <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">(@ ${proposed.payPerSurvey}/${unit})</span></td>
-                <td style="color: ${diffActual >= 0 ? 'var(--success)' : 'var(--danger)'}; font-weight: 700;">${diffActual >= 0 ? '+' : ''}${diffActual.toLocaleString()} Bs.</td>
+                <td>${formatNumber(current.totalMonthly)} Bs. <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">(Base: ${formatNumber(current.baseMonthly)} + Bono: ${formatNumber(current.bonusMonthly)})</span></td>
+                <td style="color: var(--primary-light);">${formatNumber(proposed.totalMonthly)} Bs. <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">(@ ${formatNumber(proposed.payPerSurvey)}/${unit})</span></td>
+                <td style="color: ${diffActual >= 0 ? 'var(--success)' : 'var(--danger)'}; font-weight: 700;">${diffActual >= 0 ? '+' : ''}${formatNumber(diffActual)} Bs.</td>
                 <td>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                         <span class="badge ${diffActual >= 0 ? 'badge-keep' : 'badge-replace'}" style="width: 60px; justify-content: center;">${(diffActual / current.totalMonthly * 100).toFixed(1)}%</span>
@@ -1405,9 +1417,9 @@ function renderBonosTeamSimulation() {
                 <td style="font-weight: 700;">${s.name || 'Sin nombre'} <span style="font-size: 0.6rem; color: var(--text-muted); font-weight: 400; display: block;">${s.region.toUpperCase()}</span></td>
                 <td><span class="city-badge">${s.city}</span></td>
                 <td style="text-align: center; font-weight: 600;">${s.avgDaily}</td>
-                <td>${s.current.toLocaleString()} Bs.</td>
-                <td style="color: var(--primary-light); font-weight: 600;">${s.proposed.toLocaleString()} Bs.</td>
-                <td style="color: ${diffColor}; font-weight: 700;">${s.diff >= 0 ? '+' : ''}${s.diff.toLocaleString()} Bs.</td>
+                <td>${formatNumber(s.current)} Bs.</td>
+                <td style="color: var(--primary-light); font-weight: 600;">${formatNumber(s.proposed)} Bs.</td>
+                <td style="color: ${diffColor}; font-weight: 700;">${s.diff >= 0 ? '+' : ''}${formatNumber(s.diff)} Bs.</td>
             </tr>
         `;
         simBody.innerHTML += row;
