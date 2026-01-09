@@ -1365,6 +1365,8 @@ function renderBonosTeamSimulation() {
     const auditorStats = {};
     filteredData.forEach(d => {
         const name = d[auditorField];
+        if (!name) return; // Skip if no name
+
         if (!auditorStats[name]) {
             auditorStats[name] = { total: 0, days: new Set(), city: d['Ciudad simp'], region: d.Region };
         }
@@ -1376,7 +1378,8 @@ function renderBonosTeamSimulation() {
         if (d.dateString) auditorStats[name].days.add(d.dateString);
     });
 
-    const simulation = Object.values(auditorStats).map(a => {
+    // Convert to array and preserve the name from the key
+    const simulation = Object.entries(auditorStats).map(([name, a]) => {
         const dayCount = a.days.size || 1;
         const avgDaily = a.total / dayCount;
         const auditorRegion = (a.region || '').toLowerCase() === 'oriente' ? 'oriente' : 'occidente';
@@ -1385,7 +1388,7 @@ function renderBonosTeamSimulation() {
         const proposedPay = calculatePayProposed(avgDaily, auditorRegion);
 
         return {
-            name: a.name,
+            name: name,  // Use the name from the object key
             city: a.city,
             region: auditorRegion,
             avgDaily: avgDaily.toFixed(1),
@@ -1399,7 +1402,7 @@ function renderBonosTeamSimulation() {
         const diffColor = s.diff >= 0 ? 'var(--success)' : 'var(--danger)';
         const row = `
             <tr>
-                <td style="font-weight: 700;">${s.name} <span style="font-size: 0.6rem; color: var(--text-muted); font-weight: 400; display: block;">${s.region.toUpperCase()}</span></td>
+                <td style="font-weight: 700;">${s.name || 'Sin nombre'} <span style="font-size: 0.6rem; color: var(--text-muted); font-weight: 400; display: block;">${s.region.toUpperCase()}</span></td>
                 <td><span class="city-badge">${s.city}</span></td>
                 <td style="text-align: center; font-weight: 600;">${s.avgDaily}</td>
                 <td>${s.current.toLocaleString()} Bs.</td>
@@ -1410,3 +1413,4 @@ function renderBonosTeamSimulation() {
         simBody.innerHTML += row;
     });
 }
+

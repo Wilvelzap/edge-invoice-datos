@@ -9,6 +9,9 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <!-- Authentication -->
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
     <script src="data.js"></script>
 </head>
 
@@ -132,6 +135,19 @@
                     <option value="all">Todos los Meses</option>
                 </select>
             </div>
+        </div>
+
+        <div style="padding: 0 20px; margin-top: 1rem;">
+            <button onclick="logout()" class="nav-item"
+                style="width: 100%; border: none; background: #fee2e2; color: #991b1b; font-weight: 600; cursor: pointer; justify-content: center;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                Cerrar Sesión
+            </button>
         </div>
     </aside>
 
